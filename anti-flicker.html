@@ -1,0 +1,59 @@
+<!-- ========================================
+     FIREBASE REMOTE CONFIG - ANTI-FLICKER
+     ========================================
+     
+     PURPOSE: Hides elements until Remote Config changes are applied
+     WHY: Prevents users from seeing original content flash before new content appears
+     
+     HOW IT WORKS:
+     1. Element is hidden immediately (opacity: 0)
+     2. Remote Config Tag 2 applies changes
+     3. Element is revealed either by:
+        - Tag 2 (if removeAntiFlicker: true)
+        - Timeout failsafe after 3 seconds (safety net)
+     
+     ⚠️ CRITICAL: Add this DIRECTLY to your website HTML, NOT as a GTM tag
+     WHY: GTM tags load after the page starts rendering, causing flash anyway
+     
+     ======================================== -->
+
+<style id="rc-antiflicker">
+  /* Hide the element until changes are applied */
+  input.Addtobasket.button.btnAddBasketOnDetail[type="button"] {
+    opacity: 0 !important;
+  }
+  
+  /* ⚠️ IMPORTANT: This selector MUST match exactly with Tag 2's elementSelector
+     
+     If you have multiple elements with Remote Config changes, add them here:
+     
+     h1.product-title {
+       opacity: 0 !important;
+     }
+     
+     img.hero-banner {
+       opacity: 0 !important;
+     }
+  */
+</style>
+
+<script>
+  // FAILSAFE: Remove anti-flicker after timeout
+  // This prevents elements being hidden forever if Remote Config fails
+  
+  setTimeout(function() {
+    var style = document.getElementById('rc-antiflicker');
+    if (style) {
+      style.remove();
+      console.log('Anti-flicker: Removed by timeout failsafe (3 seconds elapsed)');
+    }
+  }, 3000); // 3000ms = 3 seconds
+  
+  // WHY 3 SECONDS?
+  // - Remote Config typically loads in 0.5-1.5 seconds
+  // - 3 seconds provides buffer for slow connections
+  // - Prevents permanent hiding if Tag 2 fails
+  //
+  // ADJUSTMENT: If you're in 'development' mode (Tag 1), consider increasing to 10 seconds:
+  // }, 10000); // 10 seconds for development environment
+</script>

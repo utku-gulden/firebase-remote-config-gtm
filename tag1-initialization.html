@@ -1,0 +1,188 @@
+<script>
+(function() {
+  // ========================================
+  // FIREBASE REMOTE CONFIG - INITIALIZATION
+  // ========================================
+  // 
+  // PURPOSE: This tag loads Firebase SDK and initializes Remote Config
+  // RUNS: Once per page load, before any other Remote Config tags
+  // OUTPUTS: Pushes 'firebase_rc_ready' event to dataLayer when ready
+  //
+  // ========================================
+  
+  // ========================================
+  // CONFIGURATION - Edit these values
+  // ========================================
+  
+  var firebaseConfig = {
+    // WHERE TO GET THESE VALUES:
+    // 1. Go to Firebase Console (https://console.firebase.google.com/)
+    // 2. Select your project
+    // 3. Click gear icon > Project Settings > General tab
+    // 4. Scroll to "Your apps" section
+    // 5. Copy values from "SDK setup and configuration"
+    
+    apiKey: '{{RC - API Key}}',             
+    // WHAT: Identifies your Firebase project
+    // GTM VARIABLE: Create a Constant variable named "RC - API Key"
+    
+    authDomain: '{{RC - Auth Domain}}',      
+    // WHAT: Authentication domain for your project
+    // FORMAT: your-project-id.firebaseapp.com
+    
+    projectId: '{{RC - Project ID}}',        
+    // WHAT: Unique identifier for your Firebase project
+    // FORMAT: your-project-id
+    
+    storageBucket: '{{RC - Storage Bucket}}',
+    // WHAT: Cloud Storage bucket for your project
+    // FORMAT: your-project-id.appspot.com
+    
+    messagingSenderId: '{{RC - Messaging Sender ID}}', 
+    // WHAT: Sender ID for Firebase Cloud Messaging
+    // FORMAT: Numeric string
+    
+    appId: '{{RC - App ID}}'                
+    // WHAT: Unique identifier for your Firebase app
+    // FORMAT: 1:123456789:web:abcdef123456
+  };
+  
+  // ========================================
+  // PARAMETER DEFAULTS
+  // ========================================
+  // 
+  // CRITICAL: Define ALL your Firebase Remote Config parameters here
+  // These act as fallback values if Firebase fails to load
+  //
+  // FORMAT: "parameter_name_in_firebase": "fallback_value"
+  //
+  // RULES:
+  // 1. Parameter name MUST match exactly what you create in Firebase Console
+  // 2. Every parameter you use in "Apply Changes" tags MUST be listed here
+  // 3. Fallback value should be your "safe" default (original website value)
+  //
+  var remoteConfigDefaults = {
+    // EXAMPLE: Button text parameter
+    "button_addtobasket_text": "Sepete Ekle",
+    // ☝️ If Firebase fails, button will show "Sepete Ekle"
+    
+    // ADD MORE PARAMETERS HERE AS YOU CREATE NEW "APPLY CHANGES" TAGS:
+    // "headline_color": "#000000",
+    // "discount_percentage": 0,
+    // "show_promo_banner": false,
+    // "hero_image_url": "https://example.com/default.jpg"
+  };
+  
+  // ========================================
+  // ENVIRONMENT SETTINGS
+  // ========================================
+  
+  var environment = 'development';
+  // OPTIONS:
+  //   'development' = Fetch new values every 10 seconds (for testing)
+  //   'production'  = Fetch new values every 60 minutes (for live site)
+  //
+  // HOW TO USE:
+  // 1. Set to 'development' while building and testing
+  // 2. Change to 'production' before publishing to live site
+  //
+  // WHY: Frequent fetching in production wastes resources and may hit quotas
+  
+  // ========================================
+  // DO NOT EDIT BELOW THIS LINE
+  // ========================================
+  // The code below handles Firebase initialization automatically
+  // ========================================
+  
+  // Set fetch interval based on environment
+  var fetchInterval = environment === 'production' ? 3600000 : 10000;
+  // Production: 3600000ms = 60 minutes
+  // Development: 10000ms = 10 seconds
+  
+  function initializeFirebaseAndRC() {
+    var app;
+    
+    // Check if Firebase app already exists (prevent duplicate initialization)
+    if (!window.firebaseAppInstanceForGTM) {
+      app = firebase.initializeApp(firebaseConfig);
+      window.firebaseAppInstanceForGTM = app;
+      console.log('Remote Config: Firebase app initialized');
+    } else {
+      app = window.firebaseAppInstanceForGTM;
+      console.log('Remote Config: Using existing Firebase app instance');
+    }
+    
+    // Initialize Remote Config
+    var remoteConfig = firebase.remoteConfig(app);
+    
+    // Configure fetch interval
+    remoteConfig.settings.minimumFetchIntervalMillis = fetchInterval;
+    console.log('Remote Config: Fetch interval set to ' + fetchInterval + 'ms');
+    
+    // Set default values
+    remoteConfig.defaultConfig = remoteConfigDefaults;
+    console.log('Remote Config: Default values configured', remoteConfigDefaults);
+    
+    // Store Remote Config instance globally for other tags to use
+    window.firebaseRemoteConfigInstanceForGTM = remoteConfig;
+    
+    // Fetch and activate Remote Config from Firebase
+    remoteConfig.fetchAndActivate()
+      .then(function(activated) {
+        if (activated) {
+          console.log('Remote Config: New parameters fetched and activated');
+        } else {
+          console.log('Remote Config: Using cached parameters (no changes)');
+        }
+        
+        // Push success event to dataLayer
+        // OTHER TAGS SHOULD TRIGGER ON THIS EVENT
+        window.dataLayer = window.dataLayer || [];
+        window.dataLayer.push({ 
+          event: 'firebase_rc_ready',
+          firebase_rc_status: 'success'
+        });
+      })
+      .catch(function(err) {
+        console.error('Remote Config: Fetch error - Using default values', err);
+        
+        // Still push ready event even if fetch fails
+        // This ensures tags don't wait forever
+        // They will use default values defined above
+        window.dataLayer = window.dataLayer || [];
+        window.dataLayer.push({ 
+          event: 'firebase_rc_ready',
+          firebase_rc_status: 'error',
+          firebase_rc_error: err.message
+        });
+      });
+  }
+  
+  // Load Firebase App SDK
+  var firebaseAppScript = document.createElement('script');
+  firebaseAppScript.src = 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js';
+  document.head.appendChild(firebaseAppScript);
+  
+  firebaseAppScript.onload = function() {
+    console.log('Remote Config: Firebase App SDK loaded');
+    
+    // Load Firebase Remote Config SDK
+    var firebaseRemoteConfigScript = document.createElement('script');
+    firebaseRemoteConfigScript.src = 'https://www.gstatic.com/firebasejs/10.12.2/firebase-remote-config-compat.js';
+    document.head.appendChild(firebaseRemoteConfigScript);
+    
+    firebaseRemoteConfigScript.onload = function() {
+      console.log('Remote Config: Firebase Remote Config SDK loaded');
+      initializeFirebaseAndRC();
+    };
+    
+    firebaseRemoteConfigScript.onerror = function() {
+      console.error('Remote Config: Failed to load Remote Config SDK');
+    };
+  };
+  
+  firebaseAppScript.onerror = function() {
+    console.error('Remote Config: Failed to load Firebase App SDK');
+  };
+})();
+</script>
