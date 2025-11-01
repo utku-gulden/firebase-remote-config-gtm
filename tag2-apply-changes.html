@@ -1,0 +1,131 @@
+<script>
+(function() {
+  var featureConfig = {
+    parameterName: 'button_addtobasket_text',
+    parameterType: 'string',
+    elementSelector: 'input.Addtobasket.button.btnAddBasketOnDetail[type="button"]',
+    changeType: 'property',
+    changeName: 'value',
+    defaultValue: 'Sepete Ekle',
+    waitForElement: false,
+    maxWaitTime: 5000,
+    dataLayerEvent: 'rc_change_applied',
+    removeAntiFlicker: false
+  };
+  
+  function removeAntiFlickerStyle() {
+    if (featureConfig.removeAntiFlicker) {
+      var style = document.getElementById('rc-antiflicker');
+      if (style) {
+        style.remove();
+        console.log('Remote Config: Anti-flicker style removed by tag');
+      }
+    }
+  }
+  
+  function waitForElement(selector, maxWait, callback) {
+    var startTime = Date.now();
+    var checkInterval = 100;
+    
+    function check() {
+      var element = document.querySelector(selector);
+      if (element) {
+        console.log('Remote Config: Element found - ' + selector);
+        callback(element);
+        return;
+      }
+      if (Date.now() - startTime < maxWait) {
+        setTimeout(check, checkInterval);
+      } else {
+        console.error('Remote Config: Element not found after ' + maxWait + 'ms: ' + selector);
+        removeAntiFlickerStyle();
+      }
+    }
+    check();
+  }
+  
+  function applyChanges() {
+    if (!window.firebaseRemoteConfigInstanceForGTM) {
+      console.error('Remote Config: Not initialized. Make sure Tag 1 (Initialization) fired first.');
+      removeAntiFlickerStyle();
+      return;
+    }
+    
+    var remoteConfig = window.firebaseRemoteConfigInstanceForGTM;
+    
+    function applyToElement(element) {
+      if (!element) {
+        console.error('Remote Config: Element not found - ' + featureConfig.elementSelector);
+        removeAntiFlickerStyle();
+        return;
+      }
+      
+      console.log('Remote Config: Applying changes to element:', element);
+      
+      var value;
+      if (featureConfig.parameterType === 'boolean') {
+        value = remoteConfig.getBoolean(featureConfig.parameterName);
+      } else if (featureConfig.parameterType === 'number') {
+        value = remoteConfig.getNumber(featureConfig.parameterName);
+      } else {
+        value = remoteConfig.getString(featureConfig.parameterName);
+        if (!value) {
+          value = featureConfig.defaultValue;
+          console.log('Remote Config: Using default value (Remote Config returned empty)');
+        }
+      }
+      
+      console.log('Remote Config: Retrieved value for "' + featureConfig.parameterName + '" = ' + value);
+      
+      try {
+        if (featureConfig.changeType === 'property') {
+          element[featureConfig.changeName] = value;
+        } else if (featureConfig.changeType === 'attribute') {
+          element.setAttribute(featureConfig.changeName, value);
+        } else if (featureConfig.changeType === 'style') {
+          element.style[featureConfig.changeName] = value;
+        } else if (featureConfig.changeType === 'class') {
+          if (value === true || value === 'true' || value === 1 || value === '1') {
+            element.classList.add(featureConfig.changeName);
+          } else {
+            element.classList.remove(featureConfig.changeName);
+          }
+        }
+        
+        console.log('Remote Config: ✓ Successfully applied - ' + 
+                   featureConfig.changeType + '.' + featureConfig.changeName + ' = ' + value);
+        
+        removeAntiFlickerStyle();
+        
+        window.dataLayer = window.dataLayer || [];
+        window.dataLayer.push({
+          event: featureConfig.dataLayerEvent,
+          rc_parameter: featureConfig.parameterName,
+          rc_value: value,
+          rc_element: featureConfig.elementSelector,
+          rc_change_type: featureConfig.changeType,
+          rc_change_name: featureConfig.changeName
+        });
+        
+      } catch (error) {
+        console.error('Remote Config: Error applying change', error);
+        removeAntiFlickerStyle();
+      }
+    }
+    
+    if (featureConfig.waitForElement) {
+      console.log('Remote Config: Waiting for element - ' + featureConfig.elementSelector);
+      waitForElement(featureConfig.elementSelector, featureConfig.maxWaitTime, applyToElement);
+    } else {
+      var element = document.querySelector(featureConfig.elementSelector);
+      applyToElement(element);
+    }
+  }
+  
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyChanges);
+  } else {
+    applyChanges();
+  }
+})();
+</script>
